@@ -1,37 +1,33 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import openai
 import os
 
 app = Flask(__name__)
+CORS(app)  # 🔑 Autorise les appels depuis ton site (GitHub Pages, etc.)
 
-# Récupération de la clé OpenAI depuis les variables d'environnement
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+# Configure OpenAI avec ta clé
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-@app.route("/", methods=["POST"])
+@app.route("/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    if not data or "prompt" not in data:
-        return jsonify({"response": "Aucun prompt reçu."}), 400
-
-    prompt = data["prompt"]
-
     try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+        data = request.get_json()
+        user_message = data.get("message", "")
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",  # ⚡️ modèle rapide et pas cher
+            messages=[
+                {"role": "system", "content": "Tu es le bot 'En Pôle Position', expert en Formule 1."},
+                {"role": "user", "content": user_message}
+            ]
         )
-        response_text = completion.choices[0].message.content
-        return jsonify({"response": response_text})
+
+        bot_reply = response["choices"][0]["message"]["content"]
+        return jsonify({"reply": bot_reply})
+
     except Exception as e:
-        # Retourne l'erreur côté bot pour debug
-        return jsonify({"response": f"Erreur côté bot: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    # Render fournit le PORT via variable d'environnement
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)  # <--- autorise toutes les origines
+    app.run(host="0.0.0.0", port=10000)
